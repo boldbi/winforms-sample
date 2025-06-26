@@ -14,11 +14,11 @@ This section guides you in using the Bold BI dashboard in your Winforms sample a
 The samples require the following requirements to run.
 
 * [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/)
-* [.NET Core 6.0](https://dotnet.microsoft.com/en-us/download/dotnet-core)
+* [.NET Framework 4.8](https://dotnet.microsoft.com/en-us/download/dotnet-framework)
 
 ## Using the Winforms sample
 
-* Open the Winforms sample's solution file `BoldBI.Winforms.sln` in Visual studio.
+* Open the Winforms sample's solution file `BoldBI.Winforms.sln` in Visual Studio.
 
 * Open the EmbedProperties.cs file and change the following properties as per your Bold BI Server.
 
