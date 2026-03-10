@@ -22,13 +22,14 @@ namespace BoldBI.Winforms
         public void GetEmbedDetails()
         {
             decimal time = (decimal)Math.Round((DateTime.Now.ToUniversalTime() - new DateTime(1970, 1, 1)).TotalMilliseconds / 1000);
-            var dashboardServerApiUrl = EmbedProperties.RootUrl + "api/" + EmbedProperties.SiteIdentifier;
+            var siteId = string.IsNullOrEmpty(EmbedConfigProvider.Current.SiteIdentifier) ? "" : EmbedConfigProvider.Current.SiteIdentifier;
+            var dashboardServerApiUrl = EmbedConfigProvider.Current.ServerUrl + "api/" + siteId;
 
             var embedQuerString = "embed_nonce=" + Guid.NewGuid() +
-            "&embed_dashboard_id=" + EmbedProperties.DashboardId +
+            "&embed_dashboard_id=" + EmbedConfigProvider.Current.DashboardId +
             "&embed_timestamp=" + Math.Round(time) +
-            "&embed_expirationtime=100000";
-            embedQuerString += "&embed_user_email=" + EmbedProperties.UserEmail;
+            "&embed_expirationtime=" + (int.TryParse(EmbedConfigProvider.Current.ExpirationTime, out var expVal) ? expVal : 100000);
+            embedQuerString += "&embed_user_email=" + EmbedConfigProvider.Current.UserEmail;
             //To set embed_server_timestamp to overcome the EmbedCodeValidation failing while different timezone using at client application.
             double timeStamp = (int)DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1)).TotalSeconds;
             embedQuerString += "&embed_server_timestamp=" + timeStamp;
@@ -43,7 +44,12 @@ namespace BoldBI.Winforms
                 string resultContent = result.Content.ReadAsStringAsync().Result;
                 //webBrowser1.ObjectForScripting = this;
                 var htmlString = new StringBuilder();
-                htmlString.Append("<!DOCTYPE html><html><head><link rel='stylesheet' href='" + System.AppDomain.CurrentDomain.BaseDirectory.Replace("bin\\x64\\Debug\\", "") + "content\\chromium.css'/><script type='text/javascript' src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js'></script><script src='https://cdn.polyfill.io/v2/polyfill.min.js'></script><script type='text/javascript' src='https://cdn.boldbi.com/embedded-sdk/latest/boldbi-embed.js'></script></script><script type='text/javascript'>$(document).ready(function() {this.dashboard = BoldBI.create({ serverUrl:'" + EmbedProperties.RootUrl + EmbedProperties.SiteIdentifier + "', dashboardId:'" + EmbedProperties.DashboardId + "',embedContainerId: 'dashboard',embedType:'" + EmbedProperties.EmbedType + "',environment:'" + EmbedProperties.Environment + "',width: window.innerWidth - 20 + 'px',height: window.innerHeight - 20 + 'px',expirationTime: 100000,authorizationServer:{url: '', data:" + resultContent + "},dashboardSettings:{showExport: false,showRefresh: false,showMoreOption: false}});console.log(this.dashboard);this.dashboard.loadDashboard();});</script></head><body style='background-color: white'><div id ='viewer-section' style='background-color: white'><div id ='dashboard'></div></div></body></html>");
+                var serverUrlForJs = EmbedConfigProvider.Current.ServerUrl + EmbedConfigProvider.Current.SiteIdentifier;
+                var embedType = EmbedConfigProvider.Current.EmbedType;
+                var environment = EmbedConfigProvider.Current.Environment;
+                var expirationForJs = (int.TryParse(EmbedConfigProvider.Current.ExpirationTime, out var expJs) ? expJs : 100000);
+                htmlString.Append("<!DOCTYPE html><html><head><link rel='stylesheet' href='" + System.AppDomain.CurrentDomain.BaseDirectory.Replace("bin\\x64\\Debug\\", "") + "content\\chromium.css'/><script type='text/javascript' src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js'></script><script src='https://cdn.polyfill.io/v2/polyfill.min.js'></script><script type='text/javascript' src='https://cdn.boldbi.com/embedded-sdk/latest/boldbi-embed.js'></script></script>");
+                htmlString.Append("<script type='text/javascript'>$(document).ready(function() {this.dashboard = BoldBI.create({ serverUrl:'" + serverUrlForJs + "', dashboardId:'" + EmbedConfigProvider.Current.DashboardId + "',embedContainerId: 'dashboard',embedType:'" + embedType + "',environment:'" + environment + "',width: window.innerWidth - 20 + 'px',height: window.innerHeight - 20 + 'px',expirationTime: " + expirationForJs + ",authorizationServer:{url: '', data:" + resultContent + "},dashboardSettings:{showExport: false,showRefresh: false,showMoreOption: false}});console.log(this.dashboard);this.dashboard.loadDashboard();});</script></head><body style='background-color: white'><div id ='viewer-section' style='background-color: white'><div id ='dashboard'></div></div></body></html>");
                 string filePath = AppDomain.CurrentDomain.BaseDirectory + "EmbedWrapper.html";
                 if (File.Exists(filePath))
                 {
@@ -63,7 +69,7 @@ namespace BoldBI.Winforms
         public string GetSignatureUrl(string message)
         {
             var encoding = new System.Text.UTF8Encoding();
-            var keyBytes = encoding.GetBytes(EmbedProperties.EmbedSecret);
+            var keyBytes = encoding.GetBytes(EmbedConfigProvider.Current.EmbedSecret);
             var messageBytes = encoding.GetBytes(message);
             using (var hmacsha1 = new HMACSHA256(keyBytes))
             {
