@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Net.Http;
 using System.Text;
+using Newtonsoft.Json;
 using System.Windows.Forms;
 using System.IO;
-using System.Security.Cryptography;
 
 namespace BoldBI.Winforms
 {
@@ -21,54 +21,74 @@ namespace BoldBI.Winforms
 
         public void GetEmbedDetails()
         {
-            decimal time = (decimal)Math.Round((DateTime.Now.ToUniversalTime() - new DateTime(1970, 1, 1)).TotalMilliseconds / 1000);
-            var dashboardServerApiUrl = EmbedProperties.RootUrl + "api/" + EmbedProperties.SiteIdentifier;
+            var siteId = string.IsNullOrEmpty(EmbedConfigProvider.Current.SiteIdentifier) ? "" : EmbedConfigProvider.Current.SiteIdentifier;
 
-            var embedQuerString = "embed_nonce=" + Guid.NewGuid() +
-            "&embed_dashboard_id=" + EmbedProperties.DashboardId +
-            "&embed_timestamp=" + Math.Round(time) +
-            "&embed_expirationtime=100000";
-            embedQuerString += "&embed_user_email=" + EmbedProperties.UserEmail;
-            //To set embed_server_timestamp to overcome the EmbedCodeValidation failing while different timezone using at client application.
-            double timeStamp = (int)DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1)).TotalSeconds;
-            embedQuerString += "&embed_server_timestamp=" + timeStamp;
-            var embedDetailsUrl = "/embed/authorize?" + embedQuerString + "&embed_signature=" + GetSignatureUrl(embedQuerString);
+            // Prepare embed generation payload
+            var embedDetails = new
+            {
+                email = EmbedConfigProvider.Current.UserEmail,
+                serverurl = EmbedConfigProvider.Current.ServerUrl,
+                siteidentifier = siteId,
+                embedsecret = EmbedConfigProvider.Current.EmbedSecret,
+                dashboard = new { id = EmbedConfigProvider.Current.DashboardId }
+            };
+
+            string accessToken = null;
 
             using (var client = new HttpClient())
             {
-                client.BaseAddress = new Uri(dashboardServerApiUrl);
-                client.DefaultRequestHeaders.Accept.Clear();
+                // POST to BoldBI embed authorize endpoint to get access token
+                var requestUrl = EmbedConfigProvider.Current.ServerUrl.TrimEnd('/') + "/api/" + siteId + "/embed/authorize";
+                var jsonPayload = JsonConvert.SerializeObject(embedDetails);
+                var httpContent = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
-                var result = client.GetAsync(dashboardServerApiUrl + embedDetailsUrl).Result;
-                string resultContent = result.Content.ReadAsStringAsync().Result;
-                //webBrowser1.ObjectForScripting = this;
+                var result = client.PostAsync(requestUrl, httpContent).Result;
+                var resultContent = result.Content.ReadAsStringAsync().Result;
+
+                // Try to extract access token from response
+                try
+                {
+                    dynamic tokenResp = JsonConvert.DeserializeObject<dynamic>(resultContent);
+                    if (tokenResp != null)
+                    {
+                        if (tokenResp.Data != null && tokenResp.Data.access_token != null)
+                            accessToken = (string)tokenResp.Data.access_token;
+                        else if (tokenResp.access_token != null)
+                            accessToken = (string)tokenResp.access_token;
+                        else if (tokenResp.data != null && tokenResp.data.access_token != null)
+                            accessToken = (string)tokenResp.data.access_token;
+                    }
+                }
+                catch { /* ignore parse errors */ }
+
+                if (string.IsNullOrEmpty(accessToken))
+                {
+                    // Fallback: use raw response if token extraction failed
+                    accessToken = resultContent;
+                }
+
+                // Build HTML embedding page and inject embedToken
                 var htmlString = new StringBuilder();
-                htmlString.Append("<!DOCTYPE html><html><head><link rel='stylesheet' href='" + System.AppDomain.CurrentDomain.BaseDirectory.Replace("bin\\x64\\Debug\\", "") + "content\\chromium.css'/><script type='text/javascript' src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js'></script><script src='https://cdn.polyfill.io/v2/polyfill.min.js'></script><script type='text/javascript' src='https://cdn.boldbi.com/embedded-sdk/latest/boldbi-embed.js'></script></script><script type='text/javascript'>$(document).ready(function() {this.dashboard = BoldBI.create({ serverUrl:'" + EmbedProperties.RootUrl + EmbedProperties.SiteIdentifier + "', dashboardId:'" + EmbedProperties.DashboardId + "',embedContainerId: 'dashboard',embedType:'" + EmbedProperties.EmbedType + "',environment:'" + EmbedProperties.Environment + "',width: window.innerWidth - 20 + 'px',height: window.innerHeight - 20 + 'px',expirationTime: 100000,authorizationServer:{url: '', data:" + resultContent + "},dashboardSettings:{showExport: false,showRefresh: false,showMoreOption: false}});console.log(this.dashboard);this.dashboard.loadDashboard();});</script></head><body style='background-color: white'><div id ='viewer-section' style='background-color: white'><div id ='dashboard'></div></div></body></html>");
+                var serverUrlForJs = EmbedConfigProvider.Current.ServerUrl.TrimEnd('/') + "/" + EmbedConfigProvider.Current.SiteIdentifier;
+                var environment = EmbedConfigProvider.Current.Environment;
+
+                var cssPath = System.AppDomain.CurrentDomain.BaseDirectory.Replace("bin\\x64\\Debug\\", "") + "content\\chromium.css";
+                htmlString.Append("<!DOCTYPE html><html><head><link rel='stylesheet' href='" + cssPath + "'/><script type='text/javascript' src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js'></script><script src='https://cdn.polyfill.io/v2/polyfill.min.js'></script><script type='text/javascript' src='https://cdn.boldbi.com/embedded-sdk/latest/boldbi-embed.js'></script>");
+
+                // Use JsonConvert.ToString(accessToken) to ensure the token is properly escaped as a JS string literal
+                htmlString.Append("<script type='text/javascript'>$(document).ready(function() {this.dashboard = BoldBI.create({ serverUrl:'" + serverUrlForJs + "', dashboardId:'" + EmbedConfigProvider.Current.DashboardId + "', embedContainerId: 'dashboard', embedToken: " + JsonConvert.ToString(accessToken) + ", environment:'" + environment + "', width: window.innerWidth - 20 + 'px', height: window.innerHeight - 20 + 'px' "  + "}); this.dashboard.loadDashboard(); });</script></head><body style='background-color: white'><div id ='viewer-section' style='background-color: white'><div id ='dashboard'></div></div></body></html>");
+
                 string filePath = AppDomain.CurrentDomain.BaseDirectory + "EmbedWrapper.html";
                 if (File.Exists(filePath))
                 {
                     File.Delete(filePath);
                 }
                 using (FileStream fs = new FileStream(filePath, FileMode.Create))
+                using (StreamWriter wr = new StreamWriter(fs, Encoding.UTF8))
                 {
-                    using (StreamWriter wr = new StreamWriter(fs, Encoding.UTF8))
-                    {
-                        wr.Write(htmlString.ToString());
-                    }
+                    wr.Write(htmlString.ToString());
                 }
                 Url = filePath;
-            }
-        }
-
-        public string GetSignatureUrl(string message)
-        {
-            var encoding = new System.Text.UTF8Encoding();
-            var keyBytes = encoding.GetBytes(EmbedProperties.EmbedSecret);
-            var messageBytes = encoding.GetBytes(message);
-            using (var hmacsha1 = new HMACSHA256(keyBytes))
-            {
-                var hashMessage = hmacsha1.ComputeHash(messageBytes);
-                return Convert.ToBase64String(hashMessage);
             }
         }
     }

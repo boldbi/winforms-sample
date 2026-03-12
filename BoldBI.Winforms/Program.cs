@@ -20,6 +20,16 @@ namespace BoldBI.Winforms
                 if (Environment.GetCommandLineArgs().Contains("--type=renderer"))
                     Environment.Exit(0);
             }
+            // Load embed configuration from embedConfig.json
+            try
+            {
+                EmbedConfigProvider.Load();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed to load embed configuration: " + ex.Message, "Configuration Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Form1());

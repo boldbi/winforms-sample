@@ -2,33 +2,41 @@
 
 This BoldBI Winforms sample repository contains the Dashboard embedding sample. This sample demonstrates how to embed the dashboard which is available in your Bold BI server.
 
-This section guides you in using the Bold BI dashboard in your Winforms sample application.
-
-* [Requirements to run the demo](#requirements-to-run-the-demo)
-* [Using the Winforms sample](#using-the-winforms-sample)
-* [Online Demos](#online-demos)
-* [Documentation](#documentation)
-
-## Requirements to run the demo
+## Requirements
 
 The samples require the following requirements to run.
 
 * [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/)
 * [.NET Framework 4.8](https://dotnet.microsoft.com/en-us/download/dotnet-framework)
 
-## Using the Winforms sample
+### Supported browsers
+  
+* Google Chrome, Microsoft Edge, and Mozilla Firefox.
 
-* Open the Winforms sample's solution file `BoldBI.Winforms.sln` in Visual Studio.
+## Configuration
 
-* Open the EmbedProperties.cs file and change the following properties as per your Bold BI Server.
+* Please ensure you have enabled embed authentication on the `embed settings` page. If it is not currently enabled, please refer to the following image or detailed [instructions](https://help.boldbi.com/site-administration/embed-settings/#get-embed-secret-code?utm_source=github&utm_medium=backlinks) to enable it.
 
-| RootUrl        | Dashboard Server URL (Eg: <http://localhost:5000/bi>, <http://demo.boldbi.com/bi>).                                                |
-|----------------|--------------------------------------------------------------------------------------------------------------------------------|
-| SiteIdentifier | For the Bold BI Enterprise edition, it should be like `site/site1`. For Bold BI Cloud, it should be an empty string.          |
-| Environment    | Your Bold BI application environment. (If Cloud, you should use `cloud`, if Enterprise, you should use `enterprise`).        |
-| DashboardId    | Set the item id of the dashboard to embed from BI server.                                                                      |
-| UserEmail      | UserEmail of the Admin in your Bold BI, which would be used to get the dashboard list.                                        |
-| EmbedSecret    | Get your EmbedSecret key from the Embed tab by enabling the `Enable embed authentication` on the Administration page. For more details: [Embed settings](https://help.boldbi.com/embedded-bi/site-administration/embed-settings/?utm_source=github&utm_medium=backlinks)     |
+    ![Embed Settings](images/embed-settings.png)
+
+* To download the `embedConfig.json` file, please follow this [link](https://help.boldbi.com/site-administration/embed-settings/#get-embed-configuration-file?utm_source=github&utm_medium=backlinks) for reference. Additionally, you can refer to the following image for visual guidance.
+
+    ![Embed Settings Download](images/embed-settings-download.png)
+    ![EmbedConfig Properties](images/embedconfig-properties.png)
+
+* Copy the downloaded `embedConfig.json` file and paste it into the designated [location](https://github.com/boldbi/winforms-sample/tree/master/BoldBI.Winforms) within the application. Please ensure you have placed it in the application, as shown in the following image.
+
+   ![EmbedConfig image](images/embedconfig-image.png)
+
+## Developer IDE
+
+* Visual Studio 2022(<https://visualstudio.microsoft.com/downloads/>)
+
+### Run a Sample Using Visual Studio 2022
+
+* Open the Winforms sample's solution file `BoldBI.Winforms.sln` in Visual Studio and run it.
+
+    ![dashboard image](images/dashboard-view.png)
 
 Please refer to the [help documentation](https://help.boldbi.com/embedded-bi/javascript-based/samples/v3.3.40-or-later/winforms/#how-to-run-the-sample?utm_source=github&utm_medium=backlinks) to know how to run the sample.
 
